@@ -48,8 +48,8 @@ src/dsh_bridge.py
 
 - [x] ACP 驱动替代 headless（headless 保留为 DSH_DRIVER=fallback 配置）
 - [x] 主会话能看到 DSH 的进度摘要（chunk 流式写入 out）
-- [ ] request_permission → 黑板 blocked → dsh_respond(allow/reject) 闭环（阶段 D）
-- [ ] session/cancel 优雅取消（当前 kill 进程组，阶段 D 改进）
+- [x] request_permission → 黑板 blocked → dsh_respond(allow/reject) 闭环（阶段 D 实测）
+- [x] session/cancel 优雅取消（acp_client cancel 指令，实测通过）
 - [x] 测试全绿（fake ACP server 模拟 JSON-RPC 帧 + 真实链路）
 
 ## 依赖事实

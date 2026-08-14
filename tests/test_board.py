@@ -80,3 +80,37 @@ def test_board_init_resets_after_done(tmp_path: Path):
     assert b.read()["status"] == "working"
     assert b.read()["task"] == "任务2"
 
+
+def test_board_block_transitions_to_blocked(tmp_path: Path):
+    b = Board(tmp_path)
+    b.init(task="任务1", workspace="/tmp/a")
+    b.block(request_id="req-1", message="需要确认是否允许写文件")
+    state = b.read()
+    assert state["status"] == "blocked"
+    assert state["request_id"] == "req-1"
+    assert "写文件" in state["request_message"]
+
+
+def test_board_respond_resumes_working(tmp_path: Path):
+    b = Board(tmp_path)
+    b.init(task="任务1", workspace="/tmp/a")
+    b.block(request_id="req-1", message="确认？")
+    b.respond(allow=True)
+    assert b.read()["status"] == "working"
+
+
+def test_board_init_rejected_while_blocked(tmp_path: Path):
+    b = Board(tmp_path)
+    b.init(task="任务1", workspace="/tmp/a")
+    b.block(request_id="req-1", message="确认？")
+    with pytest.raises(BoardBusyError):
+        b.init(task="任务2", workspace="/tmp/b")
+
+
+def test_board_respond_without_block_raises(tmp_path: Path):
+    b = Board(tmp_path)
+    b.init(task="任务1", workspace="/tmp/a")
+    with pytest.raises(RuntimeError):
+        b.respond(allow=True)
+
+

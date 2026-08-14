@@ -31,6 +31,18 @@ rl.on('line', (line) => {
   }
   if (method === 'session/prompt') {
     const text = params?.prompt?.[0]?.text ?? ''
+    if (text.includes('PERM')) {
+      // 模拟权限请求：发 request_permission，等 client 响应后再继续
+      const requestId = 'req-fake-1'
+      const timer = setInterval(() => {
+        process.stdout.write(JSON.stringify({
+          jsonrpc: '2.0', method: 'session/request_permission',
+          params: { sessionId: params.sessionId, requestId, message: '允许 DSH 写文件？', options: {} },
+        }) + '\n')
+      }, 100)
+      setTimeout(() => clearInterval(timer), 10000)
+      return
+    }
     // 模拟：分两段输出文本，然后返回 end_turn
     const reply = text === 'REJECT_TEST' ? '拒绝' : '完成'
     setTimeout(() => {
@@ -40,6 +52,21 @@ rl.on('line', (line) => {
       }) + '\n')
       process.stdout.write(JSON.stringify({
         jsonrpc: '2.0', id,
+        result: { stopReason: 'end_turn' },
+      }) + '\n')
+    }, 50)
+    return
+  }
+  if (method === 'session/request_permission' && params?.response) {
+    // client 响应了权限请求：继续完成 turn
+    const sessionId = params.sessionId
+    setTimeout(() => {
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', method: 'session/update',
+        params: { sessionId, update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: '已获许可，继续' } } },
+      }) + '\n')
+      process.stdout.write(JSON.stringify({
+        jsonrpc: '2.0', id: Math.floor(Math.random() * 1000),
         result: { stopReason: 'end_turn' },
       }) + '\n')
     }, 50)

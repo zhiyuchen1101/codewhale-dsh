@@ -6,9 +6,11 @@
 //
 // 输入（stdin，每行一个 JSON）：
 //   {"id": 1, "action": "run", "task": "...", "workspace": "/path"}
-//   {"id": 1, "action": "cancel"}
+//   {"id": 1, "action": "respond", "allow": true}   应答 DSH 的权限请求
+//   {"id": 1, "action": "cancel"}                    优雅取消当前任务
 // 输出（stdout，每行一个 JSON）：
 //   {"id": 1, "type": "chunk", "text": "..."}      模型增量输出
+//   {"id": 1, "type": "permission_request", "requestId": "...", "message": "..."}
 //   {"id": 1, "type": "done", "result": "...", "stopReason": "end_turn"}
 //   {"id": 1, "type": "error", "message": "..."}
 //   {"id": null, "type": "log", "message": "..."}  诊断日志（透传 stderr）
@@ -41,7 +43,7 @@ function spawnServer() {
     : ['node', '--import', 'tsx', 'packages/examples/acp-demo/src/bin.ts', '--config', CONFIG]
   const child = spawn(cmd[0], cmd.slice(1), {
     cwd: REPO,
-    env: { ...process.env, DSH_PERMISSION_MODE: 'danger-full-access' },
+    env: { ...process.env, DSH_PERMISSION_MODE: process.env.DSH_PERMISSION_MODE || 'danger-full-access' },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   child.stderr.on('data', (d) => out({ id: null, type: 'log', message: d.toString().trim() }))
@@ -62,23 +64,30 @@ async function runTask(task, workspace) {
           out({ id: currentId, type: 'chunk', text: u.content.text })
         }
       },
-      requestPermission: async () => ({ outcome: { outcome: 'allowed' } }),
+      requestPermission: async (p) => {
+        out({ id: currentId, type: 'permission_request', requestId: p.requestId, message: JSON.stringify(p).slice(0, 500) })
+        return new Promise((resolve) => { permissionResolve = resolve })
+      },
     })
     const conn = new ClientSideConnection(makeClient, stream)
 
     await conn.initialize({ protocolVersion: 1, clientCapabilities: {} })
     const { sessionId } = await conn.newSession({ cwd: workspace, mcpServers: [] })
+    activeConn = { conn, sessionId }
     const res = await conn.prompt({
       sessionId,
       prompt: [{ type: 'text', text: task }],
     })
     return { stopReason: res.stopReason }
   } finally {
+    activeConn = null
     child.kill()
   }
 }
 
 let currentId = null
+let activeConn = null
+let permissionResolve = null
 const rl = readline.createInterface({ input: process.stdin })
 rl.on('line', async (line) => {
   const msg = JSON.parse(line)
@@ -90,7 +99,22 @@ rl.on('line', async (line) => {
     } catch (e) {
       out({ id: currentId, type: 'error', message: e.message })
     }
+  } else if (msg.action === 'respond') {
+    const resolve = permissionResolve
+    permissionResolve = null
+    if (resolve) resolve({ outcome: { outcome: msg.allow ? 'allowed' : 'rejected' } })
+    else out({ id: currentId, type: 'error', message: '没有待应答的权限请求' })
   } else if (msg.action === 'cancel') {
-    out({ id: currentId, type: 'done', stopReason: 'cancelled' })
+    if (activeConn) {
+      try {
+        await activeConn.conn.cancel({ sessionId: activeConn.sessionId })
+        out({ id: currentId, type: 'done', stopReason: 'cancelled' })
+      } catch (e) {
+        out({ id: currentId, type: 'error', message: `cancel 失败: ${e.message}` })
+      }
+    } else {
+      out({ id: currentId, type: 'done', stopReason: 'cancelled' })
+    }
   }
 })
+process.on('SIGTERM', () => process.exit(0))

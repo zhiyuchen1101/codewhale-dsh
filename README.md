@@ -54,7 +54,8 @@ The bridge translates protocols only — no agent logic, no decisions. The board
 | `dsh_init(task, workspace)` | Dispatch a task. Rejects while busy; resets after `done`/`error` |
 | `dsh_status()` | Poll status; auto-settles `done`/`error` when the process exits |
 | `dsh_read()` | Read the full result |
-| `dsh_cancel()` | Kill the process, mark the board `error` |
+| `dsh_respond(allow)` | Answer a permission/help request (`blocked` state) |
+| `dsh_cancel()` | Graceful ACP cancel; kill fallback |
 
 ## Quick start
 
@@ -83,8 +84,8 @@ Then in a codewhale session: *"use dsh_init to dispatch a task: ..."*
 | Status | Item |
 |---|---|
 | ✅ | **Minimal loop** — `dsh_init` → headless works → `dsh_read` collects |
-| 🚧 | **ACP streaming** — DSH official ACP server (`packages/acp`); live progress, approval relay, graceful cancel. We start immediately; community welcome ([design doc](docs/ACP.md)) |
-| ⬜ | **Help requests** — DSH blocked → board `blocked` → main session asks → `dsh_respond` relays (L1/L2/L3) |
+| ✅ | **ACP streaming** — official ACP server (`packages/acp`): live chunks, permission relay (`blocked` + `dsh_respond`), graceful cancel |
+| 🚧 | **Help requests L2/L3** — richer blocking reasons and escalation tiers (L1 done: permission relay) |
 | ⬜ | **Token accounting** — read DSH session `total_tokens` into results |
 | ⬜ | **Task queue** — multiple tasks, isolated workspace/session each |
 | ⬜ | **npm package** — ship `dsh-bridge` as an installable binary |

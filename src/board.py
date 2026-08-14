@@ -19,7 +19,7 @@ class BoardBusyError(RuntimeError):
 
 
 class Board:
-    STATUSES = ("idle", "working", "done", "error")
+    STATUSES = ("idle", "working", "blocked", "done", "error")
 
     def __init__(self, root: Path) -> None:
         self.path = Path(root) / "task_board.json"
@@ -50,7 +50,7 @@ class Board:
 
     def init(self, task: str, workspace: str) -> dict[str, Any]:
         state = self._load()
-        if state.get("status") == "working":
+        if state.get("status") in ("working", "blocked"):
             raise BoardBusyError(f"已有任务在执行: {state.get('task')!r}")
         self._must_be(state, ("idle", "done", "error"))  # done/error 视为可重置
         self._save(
@@ -69,14 +69,28 @@ class Board:
 
     def complete(self, result: str) -> dict[str, Any]:
         state = self._load()
-        self._must_be(state, "working")
+        self._must_be(state, ("working", "blocked"))
         state.update({"status": "done", "result": result})
         return self._save(state)
 
     def fail(self, error: str) -> dict[str, Any]:
         state = self._load()
-        self._must_be(state, "working")
+        self._must_be(state, ("working", "blocked"))
         state.update({"status": "error", "error": error})
+        return self._save(state)
+
+    def block(self, request_id: str, message: str) -> dict[str, Any]:
+        """working → blocked：DSH 在请求权限/澄清。"""
+        state = self._load()
+        self._must_be(state, "working")
+        state.update({"status": "blocked", "request_id": request_id, "request_message": message})
+        return self._save(state)
+
+    def respond(self, allow: bool) -> dict[str, Any]:
+        """blocked → working：应答权限请求后继续。"""
+        state = self._load()
+        self._must_be(state, "blocked")
+        state.update({"status": "working"})
         return self._save(state)
 
     def attach_pid(self, pid: int) -> dict[str, Any]:

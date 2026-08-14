@@ -54,7 +54,8 @@ bridge 只翻译协议——不跑 Agent、不决策。黑板是唯一状态源�
 | `dsh_init(task, workspace)` | 派活。busy 时拒绝；`done`/`error` 后自动重置 |
 | `dsh_status()` | 查状态；进程退出自动结算 `done`/`error` |
 | `dsh_read()` | 读完整结果 |
-| `dsh_cancel()` | 中断进程，黑板置 `error` |
+| `dsh_respond(allow)` | 应答 DSH 的权限/求助请求（`blocked` 状态） |
+| `dsh_cancel()` | ACP 优雅取消；超时兜底强杀 |
 
 ## 快速开始
 
@@ -83,8 +84,8 @@ make install
 | 状态 | 事项 |
 |---|---|
 | ✅ | **最小闭环** —— dsh_init → headless 干活 → dsh_read 收结果 |
-| 🚧 | **ACP 流式** —— 接入 DSH 官方 ACP server（packages/acp）：实时进度、审批转发、优雅取消。我们立即开始打磨，欢迎社区一起（[施工图](docs/ACP.md)） |
-| ⬜ | **求助机制** —— DSH 卡住 → 黑板 blocked → 主会话弹求助 → dsh_respond 传回（L1/L2/L3 分级） |
+| ✅ | **ACP 流式** —— 官方 ACP server（packages/acp）：实时吐字、权限转发（blocked + dsh_respond）、优雅取消 |
+| 🚧 | **求助分级 L2/L3** —— 更丰富的阻塞原因与升级层级（L1 权限应答已完成） |
 | ⬜ | **token 记账** —— 读 DSH 会话 total_tokens，进返回结果 |
 | ⬜ | **任务队列** —— 多任务排队，每任务独立 workspace/会话 |
 | ⬜ | **npm 包** —— 以可安装二进制发布 dsh-bridge |

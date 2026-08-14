@@ -24,6 +24,7 @@ RUN_DIR = BRIDGE_ROOT / "run"
 DRIVER = os.environ.get("DSH_DRIVER", "acp")
 
 board = Board(BRIDGE_ROOT)
+_ACTIVE_PROCS: dict[str, subprocess.Popen] = {}  # run_id → acp_client 进程（respond/cancel 用）
 
 
 def _dsh_bin() -> str:
@@ -67,7 +68,7 @@ def _spawn(task: str, workspace: str) -> int:
         )
         proc.stdin.write(json.dumps({"id": run_id, "action": "run", "task": task, "workspace": str(ws)}) + "\n")
         proc.stdin.flush()
-        # 读行协议：chunk 写 out，done/error 写 exit 后退出
+        # 读行协议：chunk 写 out，permission_request 转黑板 blocked，done/error 写 exit
         def pump():
             try:
                 for line in proc.stdout:
@@ -76,6 +77,14 @@ def _spawn(task: str, workspace: str) -> int:
                     if t == "chunk":
                         with open(out_path, "a", encoding="utf-8") as f:
                             f.write(ev.get("text", ""))
+                    elif t == "permission_request":
+                        try:
+                            board.block(
+                                request_id=ev.get("requestId", "?"),
+                                message=ev.get("message", "DSH 请求权限")[:500],
+                            )
+                        except RuntimeError:
+                            pass  # 状态非 working 时忽略
                     elif t == "done":
                         with open(exit_path, "w") as f:
                             f.write("0" if ev.get("stopReason") == "end_turn" else "1")
@@ -96,6 +105,7 @@ def _spawn(task: str, workspace: str) -> int:
                     pass
         import threading
         threading.Thread(target=pump, daemon=True).start()
+        _ACTIVE_PROCS[run_id] = proc
 
     proc = subprocess.Popen(
         ["/bin/bash", "-c", cmd],
@@ -178,9 +188,39 @@ def dsh_read() -> str:
 
 
 @mcp.tool()
-def dsh_cancel() -> str:
-    """中断 DSH 任务（kill 进程，黑板置 error）。"""
+def dsh_respond(allow: bool) -> str:
+    """应答 DSH 的权限/澄清请求（黑板 blocked 时可用）：allow=true 放行，false 拒绝。"""
     state = board.read()
+    if state.get("status") != "blocked":
+        raise ValueError(f"当前状态 {state.get('status')!r}，没有待应答的请求")
+    run_id = state.get("run_id")
+    proc = _ACTIVE_PROCS.get(run_id) if run_id else None
+    if proc is None or proc.poll() is not None:
+        # 进程已退出：直接恢复黑板，让收账逻辑处理
+        return _fmt(board.respond(allow=allow))
+    try:
+        proc.stdin.write(json.dumps({"id": run_id, "action": "respond", "allow": allow}) + "\n")
+        proc.stdin.flush()
+    except (OSError, ValueError) as e:
+        raise ValueError(f"无法送达应答: {e}") from e
+    return _fmt(board.respond(allow=allow))
+
+
+@mcp.tool()
+def dsh_cancel() -> str:
+    """中断 DSH 任务：ACP 驱动走优雅 session/cancel，超时兜底 kill。"""
+    state = board.read()
+    run_id = state.get("run_id")
+    proc = _ACTIVE_PROCS.get(run_id) if run_id else None
+    if DRIVER == "acp" and proc is not None and proc.poll() is None:
+        try:
+            proc.stdin.write(json.dumps({"id": run_id, "action": "cancel"}) + "\n")
+            proc.stdin.flush()
+            proc.wait(timeout=10)
+            return _fmt(board.fail(error="已取消（优雅）"))
+        except (OSError, ValueError, subprocess.TimeoutExpired):
+            pass
+        # 兜底：强杀
     pid = state.get("pid")
     if pid:
         try:
