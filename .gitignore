@@ -5,3 +5,8 @@ task_board.json
 run/
 *.pyc
 node_modules/
+# 本地协作记忆（绝不 push）
+MEMORY.md
+AGENTS.md
+LOG.md
+SYSTEM_PROMPT.md
