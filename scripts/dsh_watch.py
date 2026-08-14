@@ -55,16 +55,16 @@ def main() -> None:
                     for i in range(0, len(piece), 60):
                         print(f"{C['blue']}{piece[i:i+60].strip()}{C['reset']}", flush=True)
         elif status == "done":
-            print(f"\n{C['green']}✅ 完成{C['reset']}")
-            print(f"{C['dim']}{st.get('result', '')[:200]}{C['reset']}")
-            last = 0
-            last_status = None
-            time.sleep(2)
+            if last_status != "done":
+                print(f"\n{C['green']}✅ 完成{C['reset']}")
+                print(f"{C['dim']}{st.get('result', '')[:200]}{C['reset']}")
+                last_status = "done"
+            time.sleep(3)
         elif status == "error":
-            print(f"\n{C['red']}❌ {st.get('error', '')[:200]}{C['reset']}")
-            last = 0
-            last_status = None
-            time.sleep(2)
+            if last_status != "error":
+                print(f"\n{C['red']}❌ {st.get('error', '')[:200]}{C['reset']}")
+                last_status = "error"
+            time.sleep(3)
         elif status == "blocked":
             print(f"\n{C['yellow']}🔔 求助: {st.get('request_message', '')[:200]}{C['reset']}")
             time.sleep(1)
