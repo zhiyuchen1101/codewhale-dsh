@@ -19,6 +19,7 @@
 # - 小步提交，commit message 说清楚为什么
 # - 改完更新 MEMORY.md（状态/坑），会话结束追加 LOG.md
 # - 个人路径/凭据绝不进代码和提交；fixture 用合成数据
+# - Git 规则：见 MEMORY.md「Git push 规则（红线）」——push 前必须检查，未征求同意不 push
 #
 # 当前要做：[填入]
 

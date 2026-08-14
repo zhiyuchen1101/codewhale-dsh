@@ -50,6 +50,18 @@ docs/ACP.md          ACP 接入施工图
 - 测试分两堆：`make test`（快，20 个）· `make test-acp`（重，需要 DSH 仓库 + key）
 - 会话结束更新 LOG.md；状态变化更新本文件
 
+## Git push 规则（红线）
+
+1. **push 前必须检查**：
+   - 无个人路径：`git grep -n "/Users/" $(git rev-list --all) | head` 应为空
+   - 无凭据：`git grep -nE "sk-[A-Za-z0-9]{16,}" $(git rev-list --all)` 应为空
+   - 无 .env / 凭据文件：`git ls-files | grep -iE "\.env|credential|secret"` 应为空
+2. **测试全绿才提交**：`make test` 通过（`make test-acp` 视改动范围）
+3. **未征求同意不 push**（尤其 force push / 删分支 / 重写历史）——历史重写只在无他人 clone 时可用，filter-branch 后必须 force push 并验证远程无残留
+4. **不做**：把运行产物（task_board.json / run/ / .sessions）和 venv/node_modules 提交进去（.gitignore 已覆盖）
+5. fixture 一律用合成数据；测试路径用 `~` 展开，不写真实用户名路径
+6. commit message 说清楚为什么（小步、可回溯）
+
 ## 下一步候选
 
 1. 求助分级 L2/L3（blocked 语义已就位，扩展 request_message 分类）
