@@ -35,6 +35,19 @@ def _dsh_bin() -> str:
     return found
 
 
+def _api_key() -> str:
+    """优先环境变量，否则读 ~/.dsh/.credentials.yaml（DSH 凭据）。"""
+    key = os.environ.get("DEEPSEEK_API_KEY")
+    if key:
+        return key
+    try:
+        import yaml
+        cred = yaml.safe_load(Path.home().joinpath(".dsh", ".credentials.yaml").read_text(encoding="utf-8"))
+        return cred.get("DEEPSEEK_API_KEY", "") or ""
+    except (ImportError, OSError, AttributeError):
+        return ""
+
+
 def _fmt(state: dict) -> str:
     return json.dumps(state, ensure_ascii=False, default=str)
 
@@ -60,12 +73,17 @@ def _spawn(task: str, workspace: str) -> int:
         client_cmd = [
             "node", str(Path(__file__).resolve().parent / "acp_client.mjs"),
         ]
+        env = dict(os.environ)
+        key = _api_key()
+        if key:
+            env["DEEPSEEK_API_KEY"] = key
         proc = subprocess.Popen(
             client_cmd,
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             cwd=Path(__file__).resolve().parent.parent,
             text=True, bufsize=1,
+            env=env,
         )
         proc.stdin.write(json.dumps({"id": run_id, "action": "run", "task": task, "workspace": str(ws)}) + "\n")
         proc.stdin.flush()
