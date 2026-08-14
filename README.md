@@ -102,6 +102,10 @@ Then in a codewhale session: *"use dsh_init to dispatch a task: ..."*
 
 Pick an open Roadmap item, open an issue first, then send a PR. Tests must pass (`make test`). First contributions welcome — the maintainers harvest what works and credit every author.
 
+## Architecture decisions
+
+[ADR-001](docs/adr/ADR-001-reverse-bridge.md) · [ADR-002](docs/adr/ADR-002-acp-sdk.md) · [ADR-003](docs/adr/ADR-003-acp-client-module.md) · [ADR-004](docs/adr/ADR-004-server-startup.md) · [ADR-005](docs/adr/ADR-005-token-accounting.md) · [ADR-006](docs/adr/ADR-006-board-single-writer.md)
+
 ## License
 
 MIT — an independent community project, not affiliated with DeepSeek or any model provider.

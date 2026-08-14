@@ -102,6 +102,10 @@ make install
 
 从 Roadmap 里挑一项，先开 issue 再发 PR。测试必须全绿（`make test`）。欢迎首次贡献——维护者会收下能用的部分，并给每位作者署名。
 
+## 架构决策
+
+[ADR-001](docs/adr/ADR-001-reverse-bridge.md) · [ADR-002](docs/adr/ADR-002-acp-sdk.md) · [ADR-003](docs/adr/ADR-003-acp-client-module.md) · [ADR-004](docs/adr/ADR-004-server-startup.md) · [ADR-005](docs/adr/ADR-005-token-accounting.md) · [ADR-006](docs/adr/ADR-006-board-single-writer.md)
+
 ## License
 
 MIT —— 独立社区项目，与 DeepSeek 及任何模型提供商无关联。
