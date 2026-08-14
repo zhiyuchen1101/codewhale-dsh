@@ -1,30 +1,65 @@
-# codewhale-dsh
+<p align="center">
+  <b>English</b> · <a href="README.zh-CN.md">简体中文</a>
+</p>
 
-**DeepSeek Harness says: everything is a plugin. So DSH itself can be one too.**
+<h1 align="center">codewhale-dsh</h1>
 
-It doesn't leave its own waters — inside codewhale, DSH swims in as another whale: its own engine, its own plugin ecosystem, its own temperament, sharing the same terminal and the same ledger.
+<p align="center">
+  <em>DeepSeek Harness says: everything is a plugin. So DSH itself can be one too.</em>
+</p>
 
-Dispatch work, watch progress, collect results, answer its calls for help, keep one ledger — all inside your codewhale session.
+<p align="center">
+  <a href="https://github.com/zhiyuchen1101/codewhale-dsh/blob/main/LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue"></a>
+  <a href="https://github.com/zhiyuchen1101/codewhale-dsh/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/zhiyuchen1101/codewhale-dsh/actions/workflows/ci.yml/badge.svg"></a>
+  <a href="https://github.com/zhiyuchen1101/codewhale-dsh/releases"><img alt="Release" src="https://img.shields.io/github/v/release/zhiyuchen1101/codewhale-dsh?label=release"></a>
+  <img alt="tests" src="https://img.shields.io/badge/tests-12%20passed-green">
+  <img alt="Python" src="https://img.shields.io/badge/python-3.12%2B-blue">
+</p>
 
-## What this is
+---
 
-DeepSeek Harness is DeepSeek's open-source agent harness ("everything is a plugin", 358+ community plugins). codewhale is the Rust agent harness you already live in (fleet / constitution / hooks).
+It doesn't leave its own waters. Inside **codewhale**, DSH swims in as **another whale** — its own engine, its own plugin ecosystem (358+ community plugins), its own temperament, sharing the same terminal and the same ledger.
 
-Existing bridges in the DSH ecosystem all point one way (X → DSH). This project points the other way: **DSH swims into codewhale** — not as a guest UI, not as a borrowed toolset, but as a full agent with its own plugin tree, running alongside yours.
+Dispatch work, watch progress, collect results, answer its calls for help — one ledger, all inside your codewhale session.
+
+## Why
+
+DSH ecosystem bridges all point one way (tool → DSH). This project points the other way:
+
+> **DSH → codewhale.** Not a guest UI, not a borrowed toolset — a full agent with its own plugin tree, running alongside yours.
+
+## How it works
 
 ```
-codewhale TUI (Leader — your daily, your ledger)
-  │  MCP (registered in ~/.codewhale/mcp.json)
-  ▼
-dsh-bridge (FastMCP thin shell — translates protocols only, no agent logic)
-  ├── tools: dsh_init / dsh_status / dsh_read / dsh_cancel
-  ├── board: task_board.json (single-writer state machine + busy lock)
-  └── DSH process: dsh --profile headless "task"
+┌────────────────────────────────────────────────────┐
+│ codewhale TUI        your daily · your ledger       │
+│        │ MCP (mcp.json)                            │
+│        ▼                                           │
+│ dsh-bridge            FastMCP thin shell           │
+│   tools: dsh_init · dsh_status                     │
+│          dsh_read  · dsh_cancel                    │
+│   board: task_board.json  (single-writer machine)  │
+│        │ spawn                                     │
+│        ▼                                           │
+│ DSH headless          its own engine & plugins     │
+└────────────────────────────────────────────────────┘
 ```
 
-## Quick start (dev preview)
+The bridge translates protocols only — no agent logic, no decisions. The board is the single source of truth; the DSH process is the only worker.
+
+## Tools
+
+| Tool | What it does |
+|---|---|
+| `dsh_init(task, workspace)` | Dispatch a task. Rejects while busy; resets after `done`/`error` |
+| `dsh_status()` | Poll status; auto-settles `done`/`error` when the process exits |
+| `dsh_read()` | Read the full result |
+| `dsh_cancel()` | Kill the process, mark the board `error` |
+
+## Quick start
 
 ```sh
+git clone https://github.com/zhiyuchen1101/codewhale-dsh && cd codewhale-dsh
 make install
 ```
 
@@ -43,23 +78,29 @@ Register in `~/.codewhale/mcp.json`:
 
 Then in a codewhale session: *"use dsh_init to dispatch a task: ..."*
 
-## Roadmap (up for grabs)
+## Roadmap
 
-- [x] **Minimal loop** — `dsh_init` → headless works → `dsh_read` collects
-- [ ] **ACP streaming** — DSH's official ACP server (`packages/acp`) for live progress in the main session (**we start immediately after release; community welcome**)
-- [ ] **Help requests** — DSH blocked → board `blocked` → main session asks → `dsh_respond` relays (L1/L2/L3)
-- [ ] **Token accounting** — read DSH session JSON `total_tokens` into results
-- [ ] **Task queue** — multiple tasks, isolated workspaces/sessions per task
-- [ ] **npm package** — ship `dsh-bridge` as an npm-installable binary
+| Status | Item |
+|---|---|
+| ✅ | **Minimal loop** — `dsh_init` → headless works → `dsh_read` collects |
+| 🚧 | **ACP streaming** — DSH official ACP server (`packages/acp`); live progress, approval relay, graceful cancel. We start immediately; community welcome ([design doc](docs/ACP.md)) |
+| ⬜ | **Help requests** — DSH blocked → board `blocked` → main session asks → `dsh_respond` relays (L1/L2/L3) |
+| ⬜ | **Token accounting** — read DSH session `total_tokens` into results |
+| ⬜ | **Task queue** — multiple tasks, isolated workspace/session each |
+| ⬜ | **npm package** — ship `dsh-bridge` as an installable binary |
 
 ## Design rules
 
-1. Thin shell: bridge translates protocols only — no agent logic, no decisions
-2. Single writer: the board has exactly one writer
-3. TDD: RED before GREEN (`make test`)
-4. Task isolation: fresh workspace and DSH session per task
-5. Summaries out, judgment stays with you (or codewhale's verifier role)
+1. **Thin shell** — the bridge translates protocols only: no agent logic, no decisions
+2. **Single writer** — the board has exactly one writer
+3. **TDD** — RED before GREEN (`make test`)
+4. **Task isolation** — fresh workspace and DSH session per task
+5. **Summaries out, judgment stays** — with you, or codewhale's verifier role
+
+## Contributing
+
+Pick an open Roadmap item, open an issue first, then send a PR. Tests must pass (`make test`). First contributions welcome — the maintainers harvest what works and credit every author.
 
 ## License
 
-MIT
+MIT — an independent community project, not affiliated with DeepSeek or any model provider.
