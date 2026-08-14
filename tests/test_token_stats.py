@@ -31,3 +31,11 @@ def test_sum_usage_missing_file_returns_zeros(tmp_path):
 def test_session_path_layout():
     p = session_path(Path("/root/.sessions"), "abc-123")
     assert p == Path("/root/.sessions/--tmp--/abc-123/session.jsonl.zstd")
+
+
+def test_reasoning_texts_extracts():
+    from src.token_stats import reasoning_texts
+    events = read_session_events(FIXTURE)
+    t = reasoning_texts(events)
+    assert "正在分析代码" in t
+    assert "找到问题" in t

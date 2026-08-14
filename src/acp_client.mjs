@@ -73,6 +73,7 @@ async function runTask(task, workspace) {
 
     await conn.initialize({ protocolVersion: 1, clientCapabilities: {} })
     const { sessionId } = await conn.newSession({ cwd: workspace, mcpServers: [] })
+    out({ id: currentId, type: 'session_ready', sessionId })
     activeConn = { conn, sessionId }
     const res = await conn.prompt({
       sessionId,

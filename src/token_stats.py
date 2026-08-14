@@ -44,3 +44,55 @@ def sum_usage(path: Path) -> dict[str, int]:
 def session_path(sessions_root: Path, session_id: str) -> Path:
     """DSH ACP demo 的会话文件路径：<root>/--tmp--/<sessionId>/session.jsonl.zstd"""
     return Path(sessions_root) / "--tmp--" / session_id / "session.jsonl.zstd"
+
+
+def reasoning_texts(events: list[dict]) -> str:
+    """拼接所有 reasoning-chunks 的 texts（DSH 的思考流）。"""
+    parts = []
+    for ev in events:
+        if ev.get("type") != "reasoning-chunks":
+            continue
+        texts = ev.get("data", {}).get("texts") or []
+        parts.extend(t for t in texts if isinstance(t, str))
+    return "".join(parts)
+
+
+class IncrementalZstdReader:
+    """增量读 zstd JSONL：维护字节偏移 + 续解，适合追加写入的会话日志。"""
+
+    def __init__(self, path: Path):
+        self.path = Path(path)
+        self.offset = 0
+        self.dobj = None
+        self.buf = b""
+        self._reset()
+
+    def _reset(self):
+        self.offset = 0
+        self.dobj = zstandard.ZstdDecompressor().decompressobj()
+        self.buf = b""
+
+    def read_new_lines(self) -> list[str]:
+        try:
+            with open(self.path, "rb") as f:
+                f.seek(self.offset)
+                chunk = f.read()
+                new_offset = f.tell()
+            if new_offset == self.offset:
+                return []
+            self.offset = new_offset
+            try:
+                out = self.dobj.decompress(chunk)
+            except zstandard.ZstdError:
+                # 文件被重写（offset 失效）：重置重来
+                self._reset()
+                with open(self.path, "rb") as f:
+                    chunk = f.read()
+                self.offset = f.tell()
+                out = self.dobj.decompress(chunk)
+        except OSError:
+            return []
+        self.buf += out
+        lines = self.buf.split(b"\n")
+        self.buf = lines.pop()
+        return [l.decode("utf-8", errors="replace") for l in lines if l.strip()]
