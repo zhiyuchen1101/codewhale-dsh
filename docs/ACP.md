@@ -44,16 +44,18 @@ src/dsh_bridge.py
 - 黑板新增状态：`blocked`（等待审批/澄清）→ `dsh_respond` 后回 `working`
 - 队列：ACP 一连接多 session，`dsh_init` 支持并发（需评估执行锁策略）
 
-## 验收标准
+## 验收标准（进度）
 
-- [ ] ACP 驱动替代 headless（保留 headless 作为 fallback 配置项）
-- [ ] 主会话能看到 DSH 的进度摘要（chunk 数/最新 chunk）
-- [ ] request_permission → 黑板 blocked → dsh_respond(allow/reject) 闭环
-- [ ] session/cancel 优雅取消（非 kill -9）
-- [ ] 测试全绿（mock ACP server：脚本模拟 JSON-RPC 帧）
+- [x] ACP 驱动替代 headless（headless 保留为 DSH_DRIVER=fallback 配置）
+- [x] 主会话能看到 DSH 的进度摘要（chunk 流式写入 out）
+- [ ] request_permission → 黑板 blocked → dsh_respond(allow/reject) 闭环（阶段 D）
+- [ ] session/cancel 优雅取消（当前 kill 进程组，阶段 D 改进）
+- [x] 测试全绿（fake ACP server 模拟 JSON-RPC 帧 + 真实链路）
 
 ## 依赖事实
 
 - DSH ACP 入口：`dsh --profile <acp-profile>`（官方 runnable ACP composition 需要 provider/model 配置）
+- 现状：npm 组装堵死（dsh-workspace-context / dsh-bash / dsh-environment / dsh-session-title 未发布 npm），依赖 ~/deepseek-harness 仓库 `demo:acp`（tsx 跑源码）
+- 固化方向（Roadmap）：等官方补齐 npm 包后改为纯 npm 依赖；或 build 仓库用编译产物
 - 协议文档：https://agentclientprotocol.com + `packages/acp/acp/README.md`
-- client 参考：`packages/subagent/subagent-acp/README.md`
+- client 参考：`packages/subagent/subagent-acp/README.md`（官方 SDK `ClientSideConnection`）
