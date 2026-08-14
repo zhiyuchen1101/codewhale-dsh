@@ -5,7 +5,7 @@ test:
 
 install:
 	python3 -m venv .venv
-	.venv/bin/pip install -q fastmcp pytest
+	.venv/bin/pip install -q fastmcp pytest zstandard
 
 bridge:
 	.venv/bin/python src/dsh_bridge.py

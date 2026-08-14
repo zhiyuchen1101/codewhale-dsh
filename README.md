@@ -86,7 +86,7 @@ Then in a codewhale session: *"use dsh_init to dispatch a task: ..."*
 | ✅ | **Minimal loop** — `dsh_init` → headless works → `dsh_read` collects |
 | ✅ | **ACP streaming** — official ACP server (`packages/acp`): live chunks, permission relay (`blocked` + `dsh_respond`), graceful cancel |
 | 🚧 | **Help requests L2/L3** — richer blocking reasons and escalation tiers (L1 done: permission relay) |
-| ⬜ | **Token accounting** — read DSH session `total_tokens` into results |
+| ✅ | **Token accounting** — per-task usage from DSH session log (`input/output/cache/reasoning`) |
 | ⬜ | **Task queue** — multiple tasks, isolated workspace/session each |
 | ⬜ | **npm package** — ship `dsh-bridge` as an installable binary |
 

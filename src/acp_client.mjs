@@ -78,10 +78,16 @@ async function runTask(task, workspace) {
       sessionId,
       prompt: [{ type: 'text', text: task }],
     })
-    return { stopReason: res.stopReason }
+    return { stopReason: res.stopReason, sessionId }
   } finally {
     activeConn = null
-    child.kill()
+    // 优雅关闭：EOF 触发 server 的 dispose+flush（会话日志完整落盘），最多等 3 秒
+    try { child.stdin.end() } catch { /* already closed */ }
+    await Promise.race([
+      new Promise((r) => child.once('exit', r)),
+      new Promise((r) => setTimeout(r, 3000)),
+    ])
+    if (child.exitCode === null) child.kill()
   }
 }
 
@@ -94,8 +100,8 @@ rl.on('line', async (line) => {
   currentId = msg.id ?? null
   if (msg.action === 'run') {
     try {
-      const { stopReason } = await runTask(msg.task, msg.workspace)
-      out({ id: currentId, type: 'done', stopReason })
+      const { stopReason, sessionId } = await runTask(msg.task, msg.workspace)
+      out({ id: currentId, type: 'done', stopReason, sessionId })
     } catch (e) {
       out({ id: currentId, type: 'error', message: e.message })
     }

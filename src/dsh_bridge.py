@@ -16,6 +16,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 from board import Board, BoardBusyError
+from token_stats import session_path, sum_usage
 
 BRIDGE_ROOT = Path(os.environ.get("DSH_BRIDGE_ROOT", str(Path.home() / ".codewhale-dsh")))
 RUN_DIR = BRIDGE_ROOT / "run"
@@ -91,6 +92,10 @@ def _spawn(task: str, workspace: str) -> int:
                         if ev.get("stopReason") != "end_turn":
                             with open(err_path, "w") as f:
                                 f.write(f"stopReason: {ev.get('stopReason')}")
+                        sid = ev.get("sessionId")
+                        if sid:
+                            with open(RUN_DIR / f"{run_id}.session", "w") as f:
+                                f.write(sid)
                     elif t == "error":
                         with open(exit_path, "w") as f:
                             f.write("1")
@@ -142,6 +147,7 @@ def _check_done() -> dict:
             rc = -1
         if rc == 0:
             result = Path(state.get("out_path", "")).read_text(encoding="utf-8", errors="replace").strip()
+            result = _attach_tokens(result, state)
             return board.complete(result=result or "(无输出)")
         err = Path(state.get("err_path", "")).read_text(encoding="utf-8", errors="replace").strip()
         return board.fail(error=f"DSH 退出码 {rc}: {err[:500]}")
@@ -155,6 +161,28 @@ def _check_done() -> dict:
         except PermissionError:
             pass
     return state
+
+
+def _attach_tokens(result: str, state: dict) -> str:
+    """ACP 驱动：从 DSH 会话文件读 token 用量，附到结果尾部。"""
+    if state.get("driver") != "acp":
+        return result
+    run_id = state.get("run_id")
+    if not run_id:
+        return result
+    sid_file = RUN_DIR / f"{run_id}.session"
+    if not sid_file.exists():
+        return result
+    sid = sid_file.read_text(encoding="utf-8").strip()
+    sessions_root = Path(os.environ.get("DSH_SESSIONS_ROOT", str(Path.home() / "deepseek-harness" / ".sessions")))
+    usage = sum_usage(session_path(sessions_root, sid))
+    if not any(usage.values()):
+        return result
+    tokens = (
+        f"\n[tokens] input={usage['inputTokens']} output={usage['outputTokens']} "
+        f"cache={usage['cacheReadTokens']} reasoning={usage['reasoningTokens']}"
+    )
+    return result + tokens
 
 
 mcp = FastMCP("dsh-bridge")

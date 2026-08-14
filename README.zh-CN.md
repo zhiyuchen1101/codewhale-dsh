@@ -86,7 +86,7 @@ make install
 | ✅ | **最小闭环** —— dsh_init → headless 干活 → dsh_read 收结果 |
 | ✅ | **ACP 流式** —— 官方 ACP server（packages/acp）：实时吐字、权限转发（blocked + dsh_respond）、优雅取消 |
 | 🚧 | **求助分级 L2/L3** —— 更丰富的阻塞原因与升级层级（L1 权限应答已完成） |
-| ⬜ | **token 记账** —— 读 DSH 会话 total_tokens，进返回结果 |
+| ✅ | **token 记账** —— 从 DSH 会话日志读每次任务的 input/output/cache/reasoning 用量 |
 | ⬜ | **任务队列** —— 多任务排队，每任务独立 workspace/会话 |
 | ⬜ | **npm 包** —— 以可安装二进制发布 dsh-bridge |
 
