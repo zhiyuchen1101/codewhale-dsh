@@ -6,7 +6,7 @@
 
 # 工作区：~/codewhale-dsh
 # 核心文件：src/dsh_bridge.py（MCP 薄壳）、src/acp_client.mjs（ACP 驱动）、src/board.py（黑板）、src/token_stats.py（token 解析）
-# 先读：MEMORY.md（状态与坑）、docs/adr/（设计决策）、LOG.md（最近进展）
+# 先读：AGENTS.md（自动加载，含 git 红线）、MEMORY.md（状态与坑）、docs/adr/（设计决策）、LOG.md（最近进展）
 # 测试：make test（快，必须全绿）· make test-acp（重链路，需要 ~/deepseek-harness + key）
 #
 # 这是什么：把 DeepSeek Harness 作为 codewhale 的子 agent。

@@ -52,6 +52,8 @@ docs/ACP.md          ACP 接入施工图
 
 ## Git push 规则（红线）
 
+> 已同步进 **AGENTS.md**（codewhale 每次在该项目运行自动加载，无需贴提示词）
+
 1. **push 前必须检查**：
    - 无个人路径：`git grep -n "/Users/" $(git rev-list --all) | head` 应为空
    - 无凭据：`git grep -nE "sk-[A-Za-z0-9]{16,}" $(git rev-list --all)` 应为空
