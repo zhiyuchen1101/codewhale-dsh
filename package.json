@@ -1,0 +1,12 @@
+{
+  "name": "codewhale-dsh",
+  "version": "0.0.2",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "acp-client": "node src/acp_client.mjs"
+  },
+  "dependencies": {
+    "@agentclientprotocol/sdk": "^0.25.1"
+  }
+}

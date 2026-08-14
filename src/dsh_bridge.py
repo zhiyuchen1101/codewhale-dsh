@@ -20,6 +20,9 @@ from board import Board, BoardBusyError
 BRIDGE_ROOT = Path(os.environ.get("DSH_BRIDGE_ROOT", str(Path.home() / ".codewhale-dsh")))
 RUN_DIR = BRIDGE_ROOT / "run"
 
+# 驱动选择：acp（默认，流式/可取消）| headless（fallback，零依赖）
+DRIVER = os.environ.get("DSH_DRIVER", "acp")
+
 board = Board(BRIDGE_ROOT)
 
 
@@ -35,7 +38,7 @@ def _fmt(state: dict) -> str:
 
 
 def _spawn(task: str, workspace: str) -> int:
-    """后台启动 DSH headless，返回 pid。输出落到 run/ 目录。"""
+    """后台启动 DSH，返回 pid。输出落到 run/ 目录。"""
     RUN_DIR.mkdir(parents=True, exist_ok=True)
     run_id = uuid.uuid4().hex[:8]
     out_path = RUN_DIR / f"{run_id}.out"
@@ -44,24 +47,69 @@ def _spawn(task: str, workspace: str) -> int:
     ws = Path(workspace).expanduser()
     ws.mkdir(parents=True, exist_ok=True)
 
-    cmd = (
-        f"cd {shlex_quote(str(ws))} && "
-        f"{shlex_quote(_dsh_bin())} --profile headless {shlex_quote(task)} "
-        f"> {shlex_quote(str(out_path))} 2> {shlex_quote(str(err_path))}; "
-        f"echo $? > {shlex_quote(str(exit_path))}"
-    )
+    if DRIVER == "headless":
+        cmd = (
+            f"cd {shlex_quote(str(ws))} && "
+            f"{shlex_quote(_dsh_bin())} --profile headless {shlex_quote(task)} "
+            f"> {shlex_quote(str(out_path))} 2> {shlex_quote(str(err_path))}; "
+            f"echo $? > {shlex_quote(str(exit_path))}"
+        )
+    else:  # acp：Node acp_client，行协议喂任务，chunk 落 out，done/error 写 exit
+        client_cmd = [
+            "node", str(Path(__file__).resolve().parent / "acp_client.mjs"),
+        ]
+        proc = subprocess.Popen(
+            client_cmd,
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            cwd=Path(__file__).resolve().parent.parent,
+            text=True, bufsize=1,
+        )
+        proc.stdin.write(json.dumps({"id": run_id, "action": "run", "task": task, "workspace": str(ws)}) + "\n")
+        proc.stdin.flush()
+        # 读行协议：chunk 写 out，done/error 写 exit 后退出
+        def pump():
+            try:
+                for line in proc.stdout:
+                    ev = json.loads(line)
+                    t = ev.get("type")
+                    if t == "chunk":
+                        with open(out_path, "a", encoding="utf-8") as f:
+                            f.write(ev.get("text", ""))
+                    elif t == "done":
+                        with open(exit_path, "w") as f:
+                            f.write("0" if ev.get("stopReason") == "end_turn" else "1")
+                        if ev.get("stopReason") != "end_turn":
+                            with open(err_path, "w") as f:
+                                f.write(f"stopReason: {ev.get('stopReason')}")
+                    elif t == "error":
+                        with open(exit_path, "w") as f:
+                            f.write("1")
+                        with open(err_path, "w") as f:
+                            f.write(ev.get("message", ""))
+            except (json.JSONDecodeError, OSError, ValueError):
+                pass
+            finally:
+                try:
+                    proc.stdin.close()
+                except OSError:
+                    pass
+        import threading
+        threading.Thread(target=pump, daemon=True).start()
+
     proc = subprocess.Popen(
         ["/bin/bash", "-c", cmd],
         stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
-    )
+    ) if DRIVER == "headless" else proc
     # 记下输出路径供 dsh_read 使用
     state = board.read()
     state["run_id"] = run_id
     state["out_path"] = str(out_path)
     state["err_path"] = str(err_path)
     state["exit_path"] = str(exit_path)
+    state["driver"] = DRIVER
     board._save(state)
     return proc.pid
 

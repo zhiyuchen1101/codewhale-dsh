@@ -4,3 +4,4 @@ __pycache__/
 task_board.json
 run/
 *.pyc
+node_modules/

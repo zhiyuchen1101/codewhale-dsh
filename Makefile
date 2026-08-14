@@ -12,3 +12,6 @@ bridge:
 
 clean:
 	rm -rf task_board.json __pycache__ .pytest_cache
+
+test-acp:
+	.venv/bin/python tests/test_acp_client.py
