@@ -5,7 +5,7 @@ import pytest
 
 from src.token_stats import read_session_events, session_path, sum_usage
 
-# 真实会话 fixture：从 ~/deepseek-harness/.sessions/--tmp-- 拷贝一个已完成的会话
+# 合成 fixture：最小 usage 事件（无真实环境内容）
 FIXTURE = Path(__file__).parent / "fixtures" / "session.jsonl.zstd"
 
 
@@ -20,10 +20,7 @@ def test_read_session_events_parses():
 @pytest.mark.skipif(not FIXTURE.exists(), reason="fixture 未生成")
 def test_sum_usage_accumulates():
     u = sum_usage(FIXTURE)
-    assert u["inputTokens"] > 0
-    assert u["outputTokens"] > 0
-    assert u["cacheReadTokens"] >= 0
-    assert u["reasoningTokens"] >= 0
+    assert u == {"inputTokens": 300, "outputTokens": 30, "cacheReadTokens": 110, "reasoningTokens": 13}
 
 
 def test_sum_usage_missing_file_returns_zeros(tmp_path):

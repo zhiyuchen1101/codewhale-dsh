@@ -42,12 +42,12 @@ if not key:
         key = yaml.safe_load(open(os.path.expanduser("~/.dsh/.credentials.yaml")))["DEEPSEEK_API_KEY"]
     except (FileNotFoundError, KeyError, ImportError):
         key = None
-if not key or not os.path.isdir("~/deepseek-harness"):
+if not key or not os.path.isdir(os.path.expanduser("~/deepseek-harness")):
     print("== 真实 DSH server ==")
     print("跳过：需要 DEEPSEEK_API_KEY 和 ~/deepseek-harness 仓库")
     sys.exit(0)
 print("== 真实 DSH server ==")
-evs = run_acp({"DSH_REPO": "~/deepseek-harness", "DEEPSEEK_API_KEY": key}, "只回复两个字：完成", timeout=90)
+evs = run_acp({"DSH_REPO": os.path.expanduser("~/deepseek-harness"), "DEEPSEEK_API_KEY": key}, "只回复两个字：完成", timeout=90)
 kinds = [e["type"] for e in evs]
 print("事件:", kinds)
 for e in evs:
